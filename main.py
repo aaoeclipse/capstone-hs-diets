@@ -1,5 +1,5 @@
-from fastapi import FastAPI, request
-from DietService import total_model
+from fastapi import FastAPI, Body
+from DietPlan import total_model
 
 app = FastAPI()
 
@@ -7,7 +7,7 @@ app = FastAPI()
 async def root():
     return {"message": "Hello World"}
 
-@app.get("/diet")
-async def diet():
-    kg, diets = request.data
-    return total_model(kg, diets)
+@app.post("/diet")
+async def diet(kg: float = Body(), calories: int = Body()):
+    diet = total_model(kg, calories)
+    return diet
