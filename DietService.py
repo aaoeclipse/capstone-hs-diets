@@ -31,6 +31,7 @@ def model(prob,day,kg,calories):
     sol.Quantity = sol.Quantity*100
     sol = sol.rename(columns={'Quantity':'Quantity (g)'})
     return sol
+    
 def total_model(kg,calories):
     result = []
     for day in week_days:
