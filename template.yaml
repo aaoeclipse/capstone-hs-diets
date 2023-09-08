@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Resources:
+  MyECSCluster:
+    Type: AWS::ECS::Cluster
+
+  MyEcsService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      ServiceName: MyEcsService
+      Cluster: 
+        Ref: MyECSCluster
+      LaunchType: FARGATE
+      DesiredCount: 1
+      TaskDefinition: 
+        Ref: MyTaskDefinition
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: 'ENABLED'
+          SecurityGroups:
+            - 
+              Ref: ECSSecurityGroup
+          Subnets:
+            - 
+              Ref: MyPublicSubnet
+
+  MyTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: MyTaskFamily
+      Cpu: '256'
+      Memory: '0.5GB'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: 
+        Fn::GetAtt: 
+          - ECSTaskExecutionRole
+          - Arn
+      ContainerDefinitions:
+        - Name: MyContainer
+          Image: 205271021138.dkr.ecr.us-east-2.amazonaws.com/wellness-wizard:latest
+          PortMappings:
+            - ContainerPort: 8000
+          Essential: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: my-log-group
+              awslogs-region: us-east-2
+              awslogs-stream-prefix: ecs
+
+  ECSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EC2 Security Group for ECS
+
+  MyPublicSubnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: 
+        Ref: MyVPC
+      AvailabilityZone: us-east-2a
+      CidrBlock: '10.0.1.0/24'
+
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ecs-tasks.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy

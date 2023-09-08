@@ -1,59 +1,18 @@
-# %%
+
 import pandas as pd
-
-# %%
-df = pd.read_csv("data/nutrition.csv")
-
-# %%
-df = df.drop(columns="Unnamed: 0")
-df = df.drop('lucopene', axis=1)
-
-# %%
-df['serving_size'].unique()
-
-# %%
-df['serving_size'] = 100
-
-# %% [markdown]
-# ## Transforming g to numerical values
-
-# %%
-import re
-
-# %%
-def transform(rows):
-    return float(re.search("[0-9.]*", rows)[0])
-
-
-# %%
-df['carbohydrate'] = df["carbohydrate"].apply(transform)
-df['protein'] = df["protein"].apply(transform)
-df['total_fat'] = df["total_fat"].apply(transform)
-
-# %%
-df.describe()
-
-# %%
-macros_df = df[['name', 'calories', 'protein', 'carbohydrate', 'total_fat']]
-
-# %% [markdown]
-# ## Optimization
-
-# %% [markdown]
-# 1. Minimize calories
-# 2. half of the calories must be carbohydrates, 1g per kg for protein and the rest fat.
-
-# %%
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd 
 from pulp import * 
 import seaborn as sns
 
-# %%
+
+macros_df = pd.read_csv("datafile/macro_nutrients.csv")
+
 week_days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 split_values = np.linspace(0,len(macros_df),8).astype(int)
 split_values[-1] = split_values[-1]-1
+
 def random_dataset():
     frac_data = macros_df.sample(frac=1).reset_index().drop('index',axis=1)
     day_data = []
@@ -61,7 +20,7 @@ def random_dataset():
         day_data.append(frac_data.loc[split_values[s]:split_values[s+1]])
     return dict(zip(week_days,day_data))
 
-# %%
+
 def build_nutritional_values(kg,calories):
     protein_calories = kg*4
     res_calories = calories-protein_calories
@@ -70,7 +29,7 @@ def build_nutritional_values(kg,calories):
     res = {'Protein Calories':protein_calories,'Carbohydrates Calories':carb_calories,'Fat Calories':fat_calories}
     return res
 
-# %%
+
 def extract_gram(table):
     protein_grams = table['Protein Calories']/4.
     carbs_grams = table['Carbohydrates Calories']/4.
@@ -79,8 +38,9 @@ def extract_gram(table):
     return res
 
 
-# %%
 days_data = random_dataset()
+
+
 def model(day,kg,calories):
     G = extract_gram(build_nutritional_values(kg,calories))
     E = G['Carbohydrates Grams']
@@ -113,16 +73,16 @@ def model(day,kg,calories):
     return sol
 
 
-# %%
+
 sol_monday = model('Monday',70,1500)
 
-# %%
+
 sol_monday = sol_monday[sol_monday['Quantity']!=0.0]
 sol_monday.Quantity = sol_monday.Quantity*100
 sol_monday = sol_monday.rename(columns={'Quantity':'Quantity (g)'})
 sol_monday
 
-# %%
+
 def model(prob,day,kg,calories):
     G = extract_gram(build_nutritional_values(kg,calories))
     E = G['Carbohydrates Grams']
@@ -136,7 +96,7 @@ def model(prob,day,kg,calories):
     e = day_data.carbohydrate.tolist()
     f = day_data.total_fat.tolist()
     p = day_data.protein.tolist()
-#    prob  = pulp.LpProblem( "Diet", LpMinimize )
+    # prob  = pulp.LpProblem( "Diet", LpMinimize )
     prob += pulp.lpSum( [x[food[i]]*c[i] for i in range(len(food))]  )
     prob += pulp.lpSum( [x[food[i]]*e[i] for i in range(len(x)) ] )>=E
     prob += pulp.lpSum( [x[food[i]]*f[i] for i in range(len(x)) ] )>=F
@@ -156,7 +116,10 @@ def model(prob,day,kg,calories):
     sol.Quantity = sol.Quantity*100
     sol = sol.rename(columns={'Quantity':'Quantity (g)'})
     return sol
+
 def total_model(kg,calories):
+    global days_data
+    days_data = random_dataset()
     result = []
     for day in week_days:
         prob  = pulp.LpProblem( "Diet", LpMinimize )
